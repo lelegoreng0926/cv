@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useAnimationControls, useInView, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useAnimationControls, useInView, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import SchoolGalleryOverlay from "../components/SchoolGalleryOverlay";
@@ -11,7 +11,7 @@ import { certificateGalleries } from "../foto";
 import { useLanguage } from "../i18n/LanguageProvider";
 import LanguageText from "../i18n/LanguageText";
 import { useSmoothScroll } from "../components/SmoothScroll";
-import { ArrowDown, ArrowDownRight, ArrowLeft, ArrowUpRight, Download, MapPin } from "lucide-react";
+import { ArrowDown, ArrowDownRight, ArrowUpRight, Download, MapPin } from "lucide-react";
 import type { IconType } from "react-icons";
 import { FaAndroid, FaCss3Alt, FaFigma, FaGithub, FaHtml5, FaJs, FaLaravel, FaReact } from "react-icons/fa";
 import { SiJetpackcompose, SiKotlin, SiMysql, SiNextdotjs, SiSupabase, SiTailwindcss } from "react-icons/si";
@@ -249,6 +249,8 @@ function DimasCVContent() {
   const [selectedProjectIndex, setSelectedProjectIndex] = useState(0);
   const [activeSchoolIndex, setActiveSchoolIndex] = useState<number | null>(null);
   const [activeCertificateKey, setActiveCertificateKey] = useState<(typeof certificates)[number]["key"] | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const activeCertificateImages = useMemo(() => {
     if (!activeCertificateKey) return undefined;
     const certificate = certificates.find((item) => item.key === activeCertificateKey);
@@ -285,6 +287,33 @@ function DimasCVContent() {
     event.preventDefault();
     lenis.scrollTo(target, { duration: 1.2 });
   };
+
+  useEffect(() => {
+    const sectionIds = ["about", "work", "contact"];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((section): section is HTMLElement => section !== null);
+    if (!sections.length) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const visibleSection = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((first, second) => second.intersectionRatio - first.intersectionRatio)[0];
+      if (visibleSection) setActiveSection(visibleSection.target.id);
+    }, { rootMargin: "-24% 0px -58% 0px", threshold: [0, 0.2, 0.5] });
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileNavOpen]);
 
   useEffect(() => {
     if (!lenis || !window.location.hash) return;
@@ -495,6 +524,11 @@ function DimasCVContent() {
   const educationRef = useRef<HTMLElement>(null);
   const { scrollYProgress: educationProgress } = useScroll({ target: educationRef, offset: ["start 88%", "end 25%"] });
   const enter = reduceMotion ? {} : { initial: "hidden", whileInView: "visible", viewport: { once: true, amount: 0.15 }, variants: reveal, transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] as const } };
+  const navItems = [
+    { href: "#about", section: "about", label: t.nav.about },
+    { href: "#work", section: "work", label: t.nav.work },
+    { href: "#contact", section: "contact", label: t.nav.contact },
+  ];
 
   return (
     <main className="cv-page min-h-screen overflow-hidden bg-[#111110] text-[#f2f0eb] selection:bg-[#d0ff71] selection:text-[#111110]">
@@ -562,19 +596,110 @@ function DimasCVContent() {
         ))}
       </div>
 
-      <header className="relative z-20 mx-auto flex max-w-[1440px] items-center justify-between gap-2 px-3 py-6 sm:px-10 lg:px-16">
-        <Link href="/" className="flex min-w-0 items-center gap-2 text-xs font-semibold tracking-wide sm:gap-3 sm:text-sm"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#d0ff71] text-sm font-black text-[#111110]">D</span><span className="truncate">Dimas Iman Ismail<span className="ml-2 hidden text-white/35 sm:inline">/ CV</span></span></Link>
-        <nav aria-label={t.nav.label} className="hidden items-center gap-8 text-xs uppercase tracking-[0.16em] text-white/55 md:flex">
-          <a className="transition hover:text-white" href="#about" onClick={handleAnchorScroll}><LanguageText text={t.nav.about} /></a><a className="transition hover:text-white" href="#work" onClick={handleAnchorScroll}><LanguageText text={t.nav.work} /></a><a className="transition hover:text-white" href="#contact" onClick={handleAnchorScroll}><LanguageText text={t.nav.contact} /></a>
-        </nav>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-          <div role="group" aria-label={t.menu.language} className="relative inline-flex h-8 w-[68px] items-center rounded-full border border-white/15 bg-white/5 p-0.5 text-[10px] font-semibold tracking-wide">
-            <span aria-hidden="true" className={`absolute left-0.5 top-0.5 h-7 w-8 rounded-full bg-[#d0ff71] transition-transform duration-200 ease-out ${lang === "id" ? "translate-x-8" : "translate-x-0"}`} />
-            <button type="button" aria-label={t.language.switchEnglish} aria-pressed={lang === "en"} onClick={() => setLang("en")} className={`relative z-10 grid h-7 w-8 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d0ff71] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111110] ${lang === "en" ? "text-[#111110]" : "text-white/60"}`}>EN</button>
-            <button type="button" aria-label={t.language.switchIndonesian} aria-pressed={lang === "id"} onClick={() => setLang("id")} className={`relative z-10 grid h-7 w-8 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d0ff71] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111110] ${lang === "id" ? "text-[#111110]" : "text-white/60"}`}>ID</button>
+      <header className="relative z-50 mx-auto w-full max-w-[1440px] px-3 sm:px-10 lg:px-16">
+        <div className="relative z-50 flex min-h-[76px] items-center justify-between gap-3 border-b border-white/10 py-3">
+          <Link href="/" className="group flex min-w-0 items-center gap-3 text-sm font-semibold tracking-[-0.02em] text-[#f2f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d0ff71] focus-visible:ring-offset-4 focus-visible:ring-offset-[#111110] sm:gap-3.5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full border border-[#d0ff71]/45 bg-[#d0ff71] text-sm font-black text-[#111110] transition-transform duration-300 ease-out group-hover:rotate-[-8deg] group-hover:scale-105">D</span>
+            <span className="truncate">Dimas Iman Ismail<span className="ml-2 text-[10px] font-medium uppercase tracking-[0.18em] text-white/35">/ CV</span></span>
+          </Link>
+
+          <div className="flex shrink-0 items-center gap-2 sm:gap-5">
+            <nav aria-label={t.nav.label} className="hidden items-center gap-7 md:flex lg:gap-9">
+              {navItems.map(({ href, section, label }) => {
+                const isActive = activeSection === section;
+                return (
+                  <motion.a
+                    key={section}
+                    href={href}
+                    onClick={handleAnchorScroll}
+                    whileHover={reduceMotion ? undefined : { y: -1 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
+                    aria-current={isActive ? "location" : undefined}
+                    className={`group/nav relative py-2 text-[10px] font-medium uppercase tracking-[0.19em] transition-colors duration-200 focus-visible:outline-none focus-visible:text-white lg:text-[11px] ${isActive ? "text-white" : "text-white/50 hover:text-white"}`}
+                  >
+                    <LanguageText text={label} />
+                    <span aria-hidden="true" className={`absolute inset-x-0 -bottom-px h-px origin-left bg-[#d0ff71] transition-transform duration-300 ease-out ${isActive ? "scale-x-100" : "scale-x-0 group-hover/nav:scale-x-100"}`} />
+                  </motion.a>
+                );
+              })}
+            </nav>
+
+            <div role="group" aria-label={t.menu.language} className="relative inline-flex h-9 w-[72px] items-center rounded-full border border-white/15 bg-white/[0.035] p-0.5 text-[10px] font-semibold tracking-wide transition-colors duration-200 hover:border-white/25">
+              <span aria-hidden="true" className={`absolute left-0.5 top-0.5 h-8 w-[34px] rounded-full bg-[#d0ff71] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${lang === "id" ? "translate-x-[34px]" : "translate-x-0"}`} />
+              <button type="button" aria-label={t.language.switchEnglish} aria-pressed={lang === "en"} onClick={() => setLang("en")} className={`relative z-10 grid h-8 w-[34px] place-items-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d0ff71] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111110] ${lang === "en" ? "text-[#111110]" : "text-white/55 hover:text-white"}`}>EN</button>
+              <button type="button" aria-label={t.language.switchIndonesian} aria-pressed={lang === "id"} onClick={() => setLang("id")} className={`relative z-10 grid h-8 w-[34px] place-items-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d0ff71] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111110] ${lang === "id" ? "text-[#111110]" : "text-white/55 hover:text-white"}`}>ID</button>
+            </div>
+
+            <button
+              type="button"
+              aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileNavOpen}
+              aria-controls="mobile-cv-navigation"
+              onClick={() => setMobileNavOpen((open) => !open)}
+              className="relative grid size-11 place-items-center rounded-full border border-white/15 text-white transition-colors duration-200 hover:border-white/35 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d0ff71] md:hidden"
+            >
+              <span className="sr-only">{mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}</span>
+              <span aria-hidden="true" className="relative block h-3.5 w-4">
+                <span className={`absolute left-0 top-0 h-px w-4 bg-current transition-transform duration-300 ease-out ${mobileNavOpen ? "translate-y-[6px] rotate-45" : "translate-y-0"}`} />
+                <span className={`absolute left-0 top-[6px] h-px w-4 bg-current transition-transform duration-300 ease-out ${mobileNavOpen ? "translate-y-0 -rotate-45" : "translate-y-0"}`} />
+              </span>
+            </button>
           </div>
-          <Link href="https://portofolio-team-project.vercel.app/dimas/porto" className="flex items-center gap-1.5 whitespace-nowrap text-[10px] uppercase tracking-[0.08em] text-white/65 transition hover:text-[#d0ff71] sm:gap-2 sm:text-xs sm:tracking-[0.12em]"><ArrowLeft size={14} /> <LanguageText text={t.nav.portfolio} /></Link>
         </div>
+
+        <AnimatePresence>
+          {mobileNavOpen && (
+            <>
+              <motion.button
+                key="mobile-navigation-backdrop"
+                type="button"
+                aria-label="Close navigation"
+                onClick={() => setMobileNavOpen(false)}
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduceMotion ? undefined : { opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                className="fixed inset-0 z-40 cursor-default bg-black/45 backdrop-blur-[2px] md:hidden"
+              />
+              <motion.nav
+                key="mobile-cv-navigation"
+                id="mobile-cv-navigation"
+                aria-label={t.nav.label}
+                initial={reduceMotion ? false : { opacity: 0, y: -10, scale: 0.985 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -8, scale: 0.985 }}
+                transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute left-3 right-3 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-white/12 bg-[#171715]/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.58)] backdrop-blur-2xl md:hidden"
+              >
+                <div className="mb-2 flex items-center justify-between px-3 py-2 text-[9px] font-medium uppercase tracking-[0.2em] text-white/35">
+                  <span>{t.nav.label}</span>
+                  <span aria-hidden="true">D / CV</span>
+                </div>
+                <div className="divide-y divide-white/[0.08]">
+                  {navItems.map(({ href, section, label }, index) => (
+                    <motion.a
+                      key={section}
+                      href={href}
+                      onClick={(event) => {
+                        handleAnchorScroll(event);
+                        setMobileNavOpen(false);
+                      }}
+                      initial={reduceMotion ? false : { opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.22, delay: reduceMotion ? 0 : index * 0.045, ease: "easeOut" }}
+                      aria-current={activeSection === section ? "location" : undefined}
+                      className={`flex min-h-14 items-center gap-4 px-3 text-sm font-medium tracking-wide transition-colors duration-200 focus-visible:outline-none focus-visible:text-white ${activeSection === section ? "text-white" : "text-white/65 hover:text-white"}`}
+                    >
+                      <span className="font-mono text-[10px] text-[#d0ff71]/70">0{index + 1}</span>
+                      <span className="flex-1"><LanguageText text={label} /></span>
+                      <ArrowUpRight size={16} className={activeSection === section ? "text-[#d0ff71]" : "text-white/30"} />
+                    </motion.a>
+                  ))}
+                </div>
+              </motion.nav>
+            </>
+          )}
+        </AnimatePresence>
       </header>
 
       <section className="relative mx-auto flex min-h-[calc(100svh-80px)] max-w-[1440px] flex-col justify-center px-5 pb-16 pt-14 sm:px-10 sm:pt-20 lg:px-16">
@@ -744,7 +869,7 @@ function DimasCVContent() {
       <footer id="contact" className="mx-auto max-w-[1440px] px-5 pb-28 pt-24 sm:px-10 sm:pb-32 sm:pt-32 lg:px-16">
         <p className="cv-kicker"><LanguageText text={t.contact.section} /></p><h2 className="mt-7 max-w-5xl text-[clamp(3.2rem,10vw,9rem)] font-medium uppercase leading-[0.83] tracking-[-0.08em]"><LanguageText text={t.contact.heading[0]} /><br /><LanguageText text={t.contact.heading[1].split(" ").slice(0, -1).join(" ")} /> <span className="text-[#d0ff71]"><LanguageText text={t.contact.heading[1].split(" ").slice(-1)[0]} /></span></h2>
         <div className="mt-12 flex flex-col justify-between gap-8 border-t border-white/15 pt-7 sm:flex-row sm:items-end"><div><p className="text-xs uppercase tracking-[0.18em] text-white/40"><LanguageText text={t.contact.prompt} /></p><a href="mailto:dimas.makassar.2020@gmail.com" className="mt-3 inline-flex items-center gap-2 text-lg transition hover:text-[#d0ff71] sm:text-xl">dimas.makassar.2020@gmail.com <ArrowUpRight size={17} /></a></div><div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-white/55"><a className="transition hover:text-[#d0ff71]" href="https://github.com/lelegoreng0926" target="_blank" rel="noreferrer">GitHub ↗</a><a className="transition hover:text-[#d0ff71]" href="https://www.instagram.com/d_yimas" target="_blank" rel="noreferrer">Instagram ↗</a><a className="transition hover:text-[#d0ff71]" href="tel:+6282194559594">+62 821 9455 9594</a></div></div>
-        <div className="mt-16 flex justify-between border-t border-white/10 pt-5 text-[10px] uppercase tracking-[0.18em] text-white/30"><span>{t.footer.name}</span><Link href="https://portofolio-team-project.vercel.app/dimas/porto" className="transition hover:text-white"><LanguageText text={`${t.footer.portfolio} ↑`} /></Link></div>
+        <div className="mt-16 border-t border-white/10 pt-5 text-[10px] uppercase tracking-[0.18em] text-white/30"><span>{t.footer.name}</span></div>
       </footer>
     </main>
   );
