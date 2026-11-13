@@ -89,3 +89,61 @@ html[data-gallery-open="true"] .cursor-spotlight {
     display: none;
   }
 }
+
+.cv-work-project-mobile-image {
+  display: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cv-work-project-list {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  .cv-work-project-row {
+    display: flex !important;
+    width: 100%;
+    min-width: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding-block: 1.25rem;
+  }
+
+  .cv-work-project-mobile-image {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    flex: none;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 0.25rem;
+    background: #191a18;
+  }
+
+  .cv-work-project-number,
+  .cv-work-project-arrow,
+  .cv-work-project-type-desktop {
+    display: none !important;
+  }
+
+  .cv-work-project-row > div:not(.cv-work-project-mobile-image) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cv-work-project-row h3 {
+    overflow-wrap: anywhere;
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    transform: none;
+  }
+
+  .cv-work-project-type-mobile {
+    display: block !important;
+    margin-top: 0.35rem;
+    transform: none;
+  }
+}

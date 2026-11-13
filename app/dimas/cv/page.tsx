@@ -3,9 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, useAnimationControls, useInView, useReducedMotion, useScroll, useTransform } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
-import SchoolGalleryOverlay from "../components/SchoolGalleryOverlay";
+import SchoolGalleryOverlay, { SchoolGalleryBackdrop } from "../components/SchoolGalleryOverlay";
 import CustomContextMenu from "../components/CustomContextMenu";
 import { certificateGalleries } from "../foto";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -24,6 +24,14 @@ const projects = [
   { name: "BOTTINGKU", image: "/bbt.png", stack: "Kotlin · Jetpack Compose · Android", href: "https://www.figma.com/design/DzN2obyDWvAiiQV1ut4Bbk/BOTTINGKU?node-id=0-1&t=Eu4k6fDOag1Ajplo-1" },
   { name: "BelajarKu", image: "/bljr.png", stack: "Next.js · Tailwind CSS", href: "https://www.figma.com/design/tn62vFE8i3imnLXGDGTbde/BelajarKU?node-id=0-1&t=tpAcmBtRljJPKIMu-1" },
 ];
+
+const projectImageRatios: Record<string, string> = {
+  "/matrix.png": "1897 / 866",
+  "/portoo.png": "1900 / 1030",
+  "/rmstore.png": "1902 / 867",
+  "/bbt.png": "1246 / 785",
+  "/bljr.png": "1232 / 712",
+};
 
 const skills: [string, string[]][] = [
   ["Frontend", ["HTML", "CSS", "JavaScript", "React", "Next.js", "Tailwind CSS"]],
@@ -247,7 +255,9 @@ function DimasCVContent() {
   const [witaTime, setWitaTime] = useState("--:--:--");
   const [activeProjectIndex, setActiveProjectIndex] = useState<number | null>(null);
   const [selectedProjectIndex, setSelectedProjectIndex] = useState(0);
-  const [activeSchoolIndex, setActiveSchoolIndex] = useState<number | null>(null);
+  const [openSchoolGalleries, setOpenSchoolGalleries] = useState<{ index: number; focusRef: { current: HTMLButtonElement | null }; closeRef: { current: (() => void) | null } }[]>([]);
+  const [blurPercent, setBlurPercent] = useState(0);
+  const closingAllSchoolGalleries = useRef(false);
   const [activeCertificateKey, setActiveCertificateKey] = useState<(typeof certificates)[number]["key"] | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -278,6 +288,67 @@ function DimasCVContent() {
   const frameRef = useRef<number | null>(null);
   const lastFrameTime = useRef<number | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closeSchoolGallery = useCallback((index: number) => {
+    const gallery = openSchoolGalleries.find((item) => item.index === index);
+    if (gallery?.closeRef.current) gallery.closeRef.current();
+    else setOpenSchoolGalleries((current) => current.filter((item) => item.index !== index));
+  }, [openSchoolGalleries]);
+
+  const closeTopSchoolGallery = useCallback(() => {
+    const topGallery = openSchoolGalleries[openSchoolGalleries.length - 1];
+    if (topGallery) closeSchoolGallery(topGallery.index);
+  }, [openSchoolGalleries, closeSchoolGallery]);
+  const closeAllSchoolGalleries = useCallback(() => {
+    if (!openSchoolGalleries.length) return;
+    closingAllSchoolGalleries.current = true;
+    const closeImmediately: number[] = [];
+    openSchoolGalleries.forEach((gallery) => {
+      if (gallery.closeRef.current) gallery.closeRef.current();
+      else closeImmediately.push(gallery.index);
+    });
+    if (closeImmediately.length) {
+      setOpenSchoolGalleries((current) => current.filter((gallery) => !closeImmediately.includes(gallery.index)));
+    }
+  }, [openSchoolGalleries]);
+  const hasOpenSchoolGalleries = openSchoolGalleries.length > 0;
+  const lockMainPage = blurPercent > 50;
+
+  useEffect(() => {
+    if (!hasOpenSchoolGalleries) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeTopSchoolGallery();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [hasOpenSchoolGalleries, closeTopSchoolGallery]);
+
+  useEffect(() => {
+    if (!hasOpenSchoolGalleries) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    const previousPaddingRight = root.style.paddingRight;
+    const previousGalleryOpen = root.dataset.galleryOpen;
+    const shouldLockScroll = lockMainPage;
+    root.dataset.galleryOpen = "true";
+    if (shouldLockScroll) {
+      const scrollbarWidth = window.innerWidth - root.clientWidth;
+      root.style.overflow = "hidden";
+      if (scrollbarWidth > 0) root.style.paddingRight = `${scrollbarWidth}px`;
+      lenis?.stop();
+    }
+    return () => {
+      root.style.overflow = previousOverflow;
+      root.style.paddingRight = previousPaddingRight;
+      if (previousGalleryOpen === undefined) delete root.dataset.galleryOpen;
+      else root.dataset.galleryOpen = previousGalleryOpen;
+      if (shouldLockScroll) lenis?.start();
+    };
+  }, [hasOpenSchoolGalleries, lockMainPage, lenis]);
+
+  useEffect(() => {
+    if (!hasOpenSchoolGalleries) closingAllSchoolGalleries.current = false;
+  }, [hasOpenSchoolGalleries]);
 
   const handleAnchorScroll = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     if (!lenis || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -556,11 +627,28 @@ function DimasCVContent() {
         </div>
       </motion.div>}
 
+      <SchoolGalleryBackdrop
+        blurPercent={blurPercent}
+        onBlurChange={setBlurPercent}
+        openSchools={openSchoolGalleries}
+        onCloseSchool={closeSchoolGallery}
+        onCloseAll={closeAllSchoolGalleries}
+      />
+      {openSchoolGalleries.map((gallery) => (
+        <SchoolGalleryOverlay
+          key={gallery.index}
+          schoolIndex={gallery.index}
+          onClose={() => setOpenSchoolGalleries((current) => current.filter((item) => item.index !== gallery.index))}
+          returnFocusRef={gallery.focusRef}
+          managedByParent
+          requestCloseRef={gallery.closeRef}
+        />
+      ))}
       <SchoolGalleryOverlay
-        schoolIndex={activeSchoolIndex}
+        schoolIndex={null}
         images={activeCertificateImages}
         title={certificates.find((certificate) => certificate.key === activeCertificateKey)?.title}
-        onClose={() => { setActiveSchoolIndex(null); setActiveCertificateKey(null); }}
+        onClose={() => { setActiveCertificateKey(null); }}
         returnFocusRef={schoolTriggerRef}
       />
       <CustomContextMenu />
@@ -715,7 +803,7 @@ function DimasCVContent() {
           </div>
         </div>
         <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/15 pt-5 text-[10px] uppercase tracking-[0.2em] text-white/40 sm:mt-16">
-          <div className="flex items-center gap-4"><span className="flex items-center gap-2"><MapPin size={13} /> Indonesia</span><time data-no-scramble dateTime={witaTime} aria-label={t.hero.localTime} className="tabular-nums">{witaTime}</time></div>
+          <div className="flex items-center gap-4"><span className="flex items-center gap-2"><MapPin size={13} /> Indonesia</span><span className="flex items-center gap-2"><time data-no-scramble dateTime={witaTime} aria-label={t.hero.localTime} className="tabular-nums">{witaTime}</time><span className="text-white/35">GMT+8</span></span></div>
           <a href="#about" onClick={handleAnchorScroll} className="flex items-center gap-2 transition hover:text-white"><LanguageText text={t.hero.scroll} /><ArrowDown size={13} /></a>
         </div>
         <div aria-hidden="true" className="cv-marquee mt-8 overflow-hidden border-b border-white/10 pb-4 text-[clamp(1rem,2vw,1.6rem)] font-medium uppercase tracking-[0.2em] text-white/20"><div className="cv-marquee__track"><LanguageText text={`${t.hero.marquee} · ${t.hero.marquee} ·`} /></div></div>
@@ -756,7 +844,12 @@ function DimasCVContent() {
             <p className="cv-kicker"><LanguageText text={t.academic.section} /></p>
             <div className="mt-7 divide-y divide-white/15 border-y border-white/15">
               {education.map((entry, index) => (
-                <EducationEntry key={entry.school} entry={entry} index={index} progress={educationProgress} reduceMotion={Boolean(reduceMotion)} onOpen={(schoolIndex, trigger) => { schoolTriggerRef.current = trigger; setActiveCertificateKey(null); setActiveSchoolIndex(schoolIndex); }} />
+                <EducationEntry key={entry.school} entry={entry} index={index} progress={educationProgress} reduceMotion={Boolean(reduceMotion)} onOpen={(schoolIndex, trigger) => {
+                  if (closingAllSchoolGalleries.current || openSchoolGalleries.some((gallery) => gallery.index === schoolIndex) || openSchoolGalleries.length >= 3) return;
+                  setActiveCertificateKey(null);
+                  if (openSchoolGalleries.length === 0) setBlurPercent(30);
+                  setOpenSchoolGalleries((current) => [...current, { index: schoolIndex, focusRef: { current: trigger }, closeRef: { current: null } }]);
+                }} />
               ))}
             </div>
           </div>
@@ -801,7 +894,7 @@ function DimasCVContent() {
 
       <section id="work" className="mx-auto max-w-[1280px] px-5 py-24 sm:px-10 sm:py-32 lg:px-12">
         <motion.div {...enter} className="mb-14 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="cv-kicker"><LanguageText text={t.work.section} /></p><h2 className="mt-5 text-5xl font-medium tracking-[-0.06em] sm:text-7xl"><LanguageText text={t.work.heading} /><span className="text-[#d0ff71]">.</span></h2></div><p className="max-w-sm text-sm leading-6 text-white/45"><LanguageText text={t.work.description} /></p></motion.div>
-        <div ref={projectListRef} className="mx-auto max-w-[1040px] divide-y divide-white/15 border-y border-white/15">
+        <div ref={projectListRef} className="cv-work-project-list mx-auto max-w-[1040px] divide-y divide-white/15 border-y border-white/15">
           {projects.map((project, index) => {
             const isActive = activeProjectIndex === index;
             const isDimmed = activeProjectIndex !== null && !isActive;
@@ -816,7 +909,7 @@ function DimasCVContent() {
                 aria-label={`${project.name}, ${t.work.types[index]}. ${t.work.descriptions[index]} ${t.work.openProject}`}
                 data-project-index={index}
                 onPointerEnter={(event) => {
-                  if (event.pointerType !== "touch") {
+                  if (event.pointerType !== "touch" && !window.matchMedia("(hover: none), (pointer: coarse)").matches) {
                     pointerOverProject.current = true;
                     const rect = event.currentTarget.getBoundingClientRect();
                     const cursorX = rect.left + (event.clientX - rect.left);
@@ -826,7 +919,7 @@ function DimasCVContent() {
                   }
                 }}
                 onPointerMove={(event) => {
-                  if (event.pointerType !== "touch") {
+                  if (event.pointerType !== "touch" && !window.matchMedia("(hover: none), (pointer: coarse)").matches) {
                     const rect = event.currentTarget.getBoundingClientRect();
                     const cursorX = rect.left + (event.clientX - rect.left);
                     const cursorY = rect.top + (event.clientY - rect.top);
@@ -835,36 +928,37 @@ function DimasCVContent() {
                   }
                 }}
                 onPointerLeave={(event) => {
-                  if (event.pointerType !== "touch") {
+                  if (event.pointerType !== "touch" && !window.matchMedia("(hover: none), (pointer: coarse)").matches) {
                     pointerOverProject.current = false;
                     schedulePreviewHide();
                   }
                 }}
-                onFocus={() => showProjectPreview(index, window.innerWidth / 2, window.innerHeight / 2, false)}
-                onBlur={schedulePreviewHide}
-                onClick={(event) => {
-                  if (window.matchMedia("(hover: none), (pointer: coarse)").matches && !isActive) {
-                    event.preventDefault();
-                    showProjectPreview(index, window.innerWidth / 2, window.innerHeight / 2, false);
-                  }
+                onFocus={() => {
+                  if (!window.matchMedia("(hover: none), (pointer: coarse)").matches) showProjectPreview(index, window.innerWidth / 2, window.innerHeight / 2, false);
+                }}
+                onBlur={() => {
+                  if (!window.matchMedia("(hover: none), (pointer: coarse)").matches) schedulePreviewHide();
                 }}
                 style={{ opacity: isDimmed ? 0.38 : 1, filter: isDimmed ? "blur(2px)" : "blur(0px)", backgroundColor: isActive ? "rgba(255,255,255,0.025)" : "transparent" }}
-                className={`${isActive ? "cursor-none" : "cursor-pointer"} group grid grid-cols-[30px_1fr_20px] items-center gap-3 py-7 transition-[opacity,filter,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:grid-cols-[44px_1fr_auto_24px] sm:gap-4 sm:py-9`}
+                className={`cv-work-project-row ${isActive ? "cursor-none" : "cursor-pointer"} group grid grid-cols-[30px_1fr_20px] items-center gap-3 py-7 transition-[opacity,filter,background-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:grid-cols-[44px_1fr_auto_24px] sm:gap-4 sm:py-9`}
               >
-                <span key={`project-number-${index}`} className="text-xs tabular-nums text-white/35">0{index + 1}</span>
+                <div className="cv-work-project-mobile-image" style={{ aspectRatio: projectImageRatios[project.image] }}>
+                  <Image src={project.image} alt="" fill sizes="(max-width: 768px) calc(100vw - 40px), 1040px" className="object-contain" />
+                </div>
+                <span key={`project-number-${index}`} className="cv-work-project-number text-xs tabular-nums text-white/35">0{index + 1}</span>
                 <div key={`project-title-${index}`}>
                   <h3 className={`text-3xl font-medium leading-tight tracking-[-0.045em] transition-[color,translate,letter-spacing] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:text-5xl lg:text-6xl ${isActive ? "-translate-x-2 tracking-[-0.02em] text-[#d0ff71]" : "text-[#f2f0eb]"}`}>{project.name}</h3>
-                  <p key={`project-type-mobile-${index}`} className={`mt-2 text-[10px] uppercase tracking-[0.18em] text-white/45 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${isActive ? "translate-x-2" : ""}`}><LanguageText text={t.work.types[index]} /></p>
+                  <p key={`project-type-mobile-${index}`} className={`cv-work-project-type-mobile mt-2 text-[10px] uppercase tracking-[0.18em] text-white/45 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:hidden ${isActive ? "translate-x-2" : ""}`}><LanguageText text={t.work.types[index]} /></p>
                 </div>
-                <p key={`project-type-desktop-${index}`} className={`hidden justify-self-end text-xs uppercase tracking-[0.16em] text-white/45 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:block ${isActive ? "translate-x-2" : ""}`}><LanguageText text={t.work.types[index]} /></p>
-                <ArrowUpRight key={`project-arrow-${index}`} size={19} className={`transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isActive ? "-translate-y-1 translate-x-1 text-[#d0ff71]" : "text-white/35"}`} />
+                <p key={`project-type-desktop-${index}`} className={`cv-work-project-type-desktop hidden justify-self-end text-xs uppercase tracking-[0.16em] text-white/45 transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] sm:block ${isActive ? "translate-x-2" : ""}`}><LanguageText text={t.work.types[index]} /></p>
+                <ArrowUpRight key={`project-arrow-${index}`} size={19} className={`cv-work-project-arrow transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${isActive ? "-translate-y-1 translate-x-1 text-[#d0ff71]" : "text-white/35"}`} />
               </motion.a>
             );
           })}
         </div>
       </section>
 
-      <section className="bg-[#d0ff71] text-[#111110]"><div className="mx-auto grid max-w-[1440px] gap-12 px-5 py-20 sm:px-10 sm:py-24 lg:grid-cols-[0.65fr_1.35fr] lg:px-16"><div><p className="text-[10px] uppercase tracking-[0.2em] text-black/55"><LanguageText text={t.certificates.section} /></p><h2 className="mt-5 text-4xl font-medium tracking-[-0.06em]"><LanguageText text={t.certificates.heading} /></h2></div><div className="divide-y divide-black/20 border-y border-black/20">{certificates.map((certificate) => <button key={certificate.key} type="button" onClick={(event) => { schoolTriggerRef.current = event.currentTarget; setActiveSchoolIndex(null); setActiveCertificateKey(certificate.key); }} aria-label={`${t.certificates.view} ${certificate.title} ${certificate.issuer}`} className="grid w-full cursor-pointer gap-1 py-4 text-left transition-colors duration-200 hover:text-[#405520] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#405520] sm:grid-cols-[1fr_auto] sm:items-center"><div><h3 className="font-medium">{certificate.title}</h3><p className="mt-1 text-sm text-black/55">{certificate.issuer}</p></div><span className="text-sm text-black/55">{certificate.year}</span></button>)}</div></div></section>
+      <section className="bg-[#d0ff71] text-[#111110]"><div className="mx-auto grid max-w-[1440px] gap-12 px-5 py-20 sm:px-10 sm:py-24 lg:grid-cols-[0.65fr_1.35fr] lg:px-16"><div><p className="text-[10px] uppercase tracking-[0.2em] text-black/55"><LanguageText text={t.certificates.section} /></p><h2 className="mt-5 text-4xl font-medium tracking-[-0.06em]"><LanguageText text={t.certificates.heading} /></h2></div><div className="divide-y divide-black/20 border-y border-black/20">{certificates.map((certificate) => <button key={certificate.key} type="button" onClick={(event) => { schoolTriggerRef.current = event.currentTarget; setOpenSchoolGalleries([]); setActiveCertificateKey(certificate.key); }} aria-label={`${t.certificates.view} ${certificate.title} ${certificate.issuer}`} className="grid w-full cursor-pointer gap-1 py-4 text-left transition-colors duration-200 hover:text-[#405520] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#405520] sm:grid-cols-[1fr_auto] sm:items-center"><div><h3 className="font-medium">{certificate.title}</h3><p className="mt-1 text-sm text-black/55">{certificate.issuer}</p></div><span className="text-sm text-black/55">{certificate.year}</span></button>)}</div></div></section>
 
       <footer id="contact" className="mx-auto max-w-[1440px] px-5 pb-28 pt-24 sm:px-10 sm:pb-32 sm:pt-32 lg:px-16">
         <p className="cv-kicker"><LanguageText text={t.contact.section} /></p><h2 className="mt-7 max-w-5xl text-[clamp(3.2rem,10vw,9rem)] font-medium uppercase leading-[0.83] tracking-[-0.08em]"><LanguageText text={t.contact.heading[0]} /><br /><LanguageText text={t.contact.heading[1].split(" ").slice(0, -1).join(" ")} /> <span className="text-[#d0ff71]"><LanguageText text={t.contact.heading[1].split(" ").slice(-1)[0]} /></span></h2>
