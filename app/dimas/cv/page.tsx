@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useAnimationControls, useInView, useReducedMot
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import SchoolGalleryOverlay, { SchoolGalleryBackdrop } from "../components/SchoolGalleryOverlay";
+import AcademicOnboardingNotification from "../components/AcademicOnboardingNotification";
 import CustomContextMenu from "../components/CustomContextMenu";
 import { certificateGalleries } from "../foto";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -312,7 +313,7 @@ function DimasCVContent() {
     }
   }, [openSchoolGalleries]);
   const hasOpenSchoolGalleries = openSchoolGalleries.length > 0;
-  const lockMainPage = blurPercent > 50;
+  const lockMainPage = blurPercent >= 30;
 
   useEffect(() => {
     if (!hasOpenSchoolGalleries) return;
@@ -838,6 +839,7 @@ function DimasCVContent() {
         </motion.div>
       </section>
 
+      <AcademicOnboardingNotification targetRef={educationRef} />
       <section ref={educationRef} className="border-y border-white/10 bg-[#171716]">
         <div className="mx-auto grid max-w-[1440px] gap-14 px-5 py-20 sm:px-10 sm:py-24 lg:grid-cols-2 lg:px-16">
           <div>
@@ -845,7 +847,7 @@ function DimasCVContent() {
             <div className="mt-7 divide-y divide-white/15 border-y border-white/15">
               {education.map((entry, index) => (
                 <EducationEntry key={entry.school} entry={entry} index={index} progress={educationProgress} reduceMotion={Boolean(reduceMotion)} onOpen={(schoolIndex, trigger) => {
-                  if (closingAllSchoolGalleries.current || openSchoolGalleries.some((gallery) => gallery.index === schoolIndex) || openSchoolGalleries.length >= 3) return;
+                  if (blurPercent >= 30 || closingAllSchoolGalleries.current || openSchoolGalleries.some((gallery) => gallery.index === schoolIndex) || openSchoolGalleries.length >= 3) return;
                   setActiveCertificateKey(null);
                   if (openSchoolGalleries.length === 0) setBlurPercent(30);
                   setOpenSchoolGalleries((current) => [...current, { index: schoolIndex, focusRef: { current: trigger }, closeRef: { current: null } }]);

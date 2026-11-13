@@ -19,6 +19,11 @@ export const en = {
   academic: {
     section: "02 / Academic background",
     levels: { senior: "Senior High School / Vocational School", junior: "Junior High School", elementary: "Elementary School" },
+    onboarding: {
+      title: "Explore My Academic Journey",
+      description: "Tap a school name to discover photos and memories from my academic journey.",
+      close: "Close notification",
+    },
   },
   skills: { section: "03 / Skills & tools", developmentTools: "Development tools", marqueeLabel: "Technologies and tools" },
   work: {
@@ -91,6 +96,11 @@ export const id: Dictionary = {
   academic: {
     section: "02 / Latar belakang pendidikan",
     levels: { senior: "SMK", junior: "SMP", elementary: "SD" },
+    onboarding: {
+      title: "Jelajahi Perjalanan Pendidikan",
+      description: "Tekan nama sekolah untuk melihat foto dan kenangan selama menempuh pendidikan.",
+      close: "Tutup notifikasi",
+    },
   },
   skills: { section: "03 / Keahlian & perangkat", developmentTools: "Perangkat pengembangan", marqueeLabel: "Teknologi dan perangkat" },
   work: {

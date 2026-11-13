@@ -329,7 +329,7 @@ export function SchoolGalleryBackdrop({
           backgroundColor: `rgba(0, 0, 0, ${tintAlpha})`,
           backdropFilter: `blur(${blurPixels}px)`,
           WebkitBackdropFilter: `blur(${blurPixels}px)`,
-          pointerEvents: normalizedBlurPercent > 50 ? "auto" : "none",
+          pointerEvents: normalizedBlurPercent >= 30 ? "auto" : "none",
           transition: "backdrop-filter 180ms ease-out, background-color 180ms ease-out",
         }}
       />
