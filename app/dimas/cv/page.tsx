@@ -721,7 +721,7 @@ function DimasCVContent() {
 
             <button
               type="button"
-              aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+              aria-label={mobileNavOpen ? t.menu.close : t.menu.open}
               aria-expanded={mobileNavOpen}
               aria-controls="mobile-cv-navigation"
               onClick={() => setMobileNavOpen((open) => !open)}
@@ -742,7 +742,7 @@ function DimasCVContent() {
               <motion.button
                 key="mobile-navigation-backdrop"
                 type="button"
-                aria-label="Close navigation"
+                aria-label={t.menu.close}
                 onClick={() => setMobileNavOpen(false)}
                 initial={reduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -855,7 +855,16 @@ function DimasCVContent() {
               ))}
             </div>
           </div>
-          <motion.div {...enter}><p className="cv-kicker"><LanguageText text={t.skills.section} /></p><div className="mt-6 divide-y divide-white/10">{skills.map(([category, tools], categoryIndex) => <div key={category} className="grid gap-2 py-4 sm:grid-cols-[170px_1fr] sm:gap-5"><h3 className="text-sm text-white/45">{category === "Development tools" ? <LanguageText text={t.skills.developmentTools} /> : category}</h3><p className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm leading-6 text-white/80">{tools.map((tool, index) => {
+          <motion.div {...enter}><p className="cv-kicker"><LanguageText text={t.skills.section} /></p><div className="mt-6 divide-y divide-white/10">{skills.map(([category, tools], categoryIndex) => {
+            const categoryLabels: Record<string, string> = {
+              Frontend: t.skills.categories.frontend,
+              Backend: t.skills.categories.backend,
+              Mobile: t.skills.categories.mobile,
+              Database: t.skills.categories.database,
+              "UI / UX": t.skills.categories.design,
+              "Development tools": t.skills.categories.developmentTools,
+            };
+            return <div key={category} className="grid gap-2 py-4 sm:grid-cols-[170px_1fr] sm:gap-5"><h3 className="text-sm text-white/45"><LanguageText text={categoryLabels[category]} /></h3><p className="flex flex-wrap items-center gap-x-2 gap-y-3 text-sm leading-6 text-white/80">{tools.map((tool, index) => {
             const iconName = skillIconAliases[tool] ?? tool;
             const technology = technologies.find(({ name }) => name === iconName);
             const SkillIcon = technology?.icon;
@@ -871,7 +880,8 @@ function DimasCVContent() {
             return <span key={tool} className="inline-flex items-center gap-2"><span className="relative inline-flex cursor-default items-center transition-colors duration-200 hover:text-white" onPointerEnter={(event) => {
               if (event.pointerType !== "touch") setHoveredSkill(tool);
             }} onPointerLeave={() => setHoveredSkill(null)}>{tool}{hoveredSkill === tool && SkillIcon && technology && <SkillIcon key={`icon-${tool}`} aria-hidden="true" className="skill-pop skill-pop--active absolute bottom-full left-1/2 z-20 text-xl" style={{ ...hopStyle, color: technology.color }} />}</span>{index < tools.length - 1 && <span aria-hidden="true" className="text-white/25">·</span>}</span>;
-          })}</p></div>)}</div></motion.div>
+          })}</p></div>;
+          })}</div></motion.div>
         </div>
         <div className="cv-tech-marquee group overflow-hidden border-t border-white/10 py-8" aria-label={t.skills.marqueeLabel} onPointerEnter={(event) => {
           if (event.pointerType === "touch") return;
