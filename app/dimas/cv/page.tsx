@@ -348,7 +348,12 @@ function DimasCVContent() {
   }, [hasOpenSchoolGalleries, lockMainPage, lenis]);
 
   useEffect(() => {
-    if (!hasOpenSchoolGalleries) closingAllSchoolGalleries.current = false;
+    if (!hasOpenSchoolGalleries) {
+      closingAllSchoolGalleries.current = false;
+      // The blur slider locks the education section while a gallery is open.
+      // Reset it after the last gallery closes so school names can be opened again.
+      setBlurPercent(0);
+    }
   }, [hasOpenSchoolGalleries]);
 
   const handleAnchorScroll = (event: ReactMouseEvent<HTMLAnchorElement>) => {
